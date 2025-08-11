@@ -4,11 +4,11 @@ import { MainRoutes } from "./routes/index.js";
 import { Server } from "socket.io";
 import "dotenv/config";
 import { createServer } from "http";
-import { fileURLToPath } from "url";
-import path from "path";
+// import { fileURLToPath } from "url";
+// import path from "path";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// const __filename = fileURLToPath(import.meta.url);
+// const __dirname = path.dirname(__filename);
 
 // Initialize environment variables
 const PORT = process.env.HOST_PORT || 3000;
@@ -202,10 +202,10 @@ io.on("connection", (socket) => {
   });
 });
 
-app.use(express.static(path.join(__dirname, "public")));
-app.get("/", (_, res) => {
-  res.sendFile(path.join(__dirname, "public/index.html"));
-});
+// app.use(express.static(path.join(__dirname, "../public")));
+// app.get("/", (_, res) => {
+//   res.sendFile(path.join(__dirname, "../public/index.html"));
+// });
 
 //Route initialization
 MainRoutes(app);
