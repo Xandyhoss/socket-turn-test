@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sockets</title>
+  </head>
+  <body>
+    <span
+      id="connectionBadge"
+      style="
+        padding: 4px 12px;
+        border-radius: 12px;
+        background: #ccc;
+        color: #fff;
+        font-weight: bold;
+      "
+    >
+      Disconnected
+    </span>
+    <div>
+      <input
+        style="margin-block: 10px"
+        type="text"
+        id="usernameInput"
+        placeholder="Enter your username"
+      />
+    </div>
+    <div style="display: flex; gap: 10px">
+      <button id="connectButton">Connect</button>
+      <button id="disconnectButton" style="display: none">Disconnect</button>
+    </div>
+
+    <div style="margin-top: 30px; display: none; gap: 10px" id="roomControls">
+      <div>
+        <input type="text" id="roomInput" placeholder="Enter room code" />
+        <button id="joinRoomButton">Join Room</button>
+      </div>
+      <button id="createRoomButton">Create Room</button>
+    </div>
+
+    <div
+      style="margin-top: 30px; display: none; gap: 10px"
+      id="insideRoomControls"
+    >
+      <h4>ROOM: <span id="roomCode"></span></h4>
+      <div style="margin-block: 10px" id="playersList"></div>
+      <div style="margin-block: 10px">
+        <button id="skipTurnButton" style="display: none">
+          Skip turn to next player
+        </button>
+      </div>
+      <div style="display: flex; gap: 10px">
+        <button id="startGameButton" style="display: none">Start Game</button>
+        <button id="leaveRoomButton">Leave Room</button>
+      </div>
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      var currentSocketState = {
+        connected: false,
+        id: null,
+        currentRoom: null,
+        gameState: {
+          started: false,
+          players: [],
+          currentPlayer: null,
+          currentTurn: null,
+          owner: null,
+        },
+      };
+      const socket = io({ autoConnect: false });
+
+      // Event listeners
+      socket.on("welcome", (data) => {
+        console.log(data.message, data.id);
+        currentSocketState.connected = true;
+        currentSocketState.id = data.id;
+      });
+
+      //Start game
+      document
+        .getElementById("startGameButton")
+        .addEventListener("click", () => {
+          if (currentSocketState.currentRoom) {
+            socket.emit("startGame", currentSocketState.currentRoom);
+          } else {
+            alert("You must be in a room to start a game.");
+          }
+        });
+
+      // Connect button
+      document
+        .getElementById("connectButton")
+        .addEventListener("click", async () => {
+          if (document.getElementById("usernameInput").value) {
+            socket.connect();
+          } else {
+            alert("Please enter a username.");
+          }
+        });
+
+      // Disconnect button
+      document
+        .getElementById("disconnectButton")
+        .addEventListener("click", () => {
+          socket.disconnect();
+        });
+
+      function updateConnectionBadge() {
+        const badge = document.getElementById("connectionBadge");
+        if (currentSocketState.connected) {
+          badge.textContent = "Connected";
+          badge.style.background = "#4caf50";
+        } else {
+          badge.textContent = "Disconnected";
+          badge.style.background = "#f44336";
+        }
+      }
+      updateConnectionBadge();
+
+      function updateButtonVisibility() {
+        document.getElementById("connectButton").style.display =
+          currentSocketState.connected ? "none" : "inline-block";
+        document.getElementById("disconnectButton").style.display =
+          currentSocketState.connected ? "inline-block" : "none";
+        document.getElementById("roomControls").style.display =
+          currentSocketState.connected && !currentSocketState.currentRoom
+            ? "flex"
+            : "none";
+      }
+
+      // Show/hide Start Game button based on owner
+      function updateStartGameButton() {
+        console.log("gameState", currentSocketState.gameState);
+        const btn = document.getElementById("startGameButton");
+        if (currentSocketState?.gameState?.started) {
+          btn.style.display = "none";
+          return;
+        }
+        if (
+          currentSocketState.id &&
+          currentSocketState.gameState &&
+          currentSocketState.id === currentSocketState.gameState.owner.id
+        ) {
+          btn.style.display = "block";
+        } else {
+          btn.style.display = "none";
+        }
+      }
+
+      function updateSkipTurnButton() {
+        const btn = document.getElementById("skipTurnButton");
+        const gameState = currentSocketState.gameState;
+        if (
+          gameState &&
+          gameState.currentPlayer &&
+          currentSocketState.id === gameState.currentPlayer.id
+        ) {
+          alert("Minha vez");
+          btn.style.display = "inline-block";
+        } else {
+          btn.style.display = "none";
+        }
+      }
+
+      // Skip turn button
+      document
+        .getElementById("skipTurnButton")
+        .addEventListener("click", () => {
+          if (
+            currentSocketState.currentRoom &&
+            currentSocketState.gameState.currentPlayer
+          ) {
+            socket.emit("nextTurn", {
+              code: currentSocketState.currentRoom,
+            });
+          }
+        });
+
+      //Room join button
+      document
+        .getElementById("joinRoomButton")
+        .addEventListener("click", () => {
+          const roomCode = document.getElementById("roomInput").value.trim();
+          if (!roomCode) {
+            alert("Enter a room code.");
+            return;
+          }
+          socket.emit("joinRoom", roomCode);
+        });
+
+      //Room creation
+      document
+        .getElementById("createRoomButton")
+        .addEventListener("click", () => {
+          socket.emit("createRoom");
+        });
+
+      //Room leave
+      document
+        .getElementById("leaveRoomButton")
+        .addEventListener("click", () => {
+          socket.emit("leaveRoom", currentSocketState.currentRoom);
+        });
+
+      socket.on("roomJoined", (data) => {
+        alert(`Joined room: ${data.room}`);
+        document.getElementById("roomCode").textContent = data.room;
+        document.getElementById("roomControls").style.display = "none";
+        currentSocketState.currentRoom = data.room;
+        currentSocketState.gameState = data.gameState;
+        document.getElementById("insideRoomControls").style.display = "block";
+        const playersList = document.getElementById("playersList");
+        playersList.innerHTML = "";
+        data.players.map((player) => {
+          const playerItem = document.createElement("div");
+          playerItem.textContent = player.username;
+          playersList.appendChild(playerItem);
+        });
+        updateStartGameButton();
+      });
+
+      socket.on("roomCreated", (data) => {
+        alert(`Created room: ${data.room}`);
+        document.getElementById("roomCode").textContent = data.room;
+        document.getElementById("roomControls").style.display = "none";
+        currentSocketState.currentRoom = data.room;
+        currentSocketState.gameState = data.gameState;
+        document.getElementById("insideRoomControls").style.display = "block";
+        const playersList = document.getElementById("playersList");
+        playersList.innerHTML = "";
+        data.players.map((player) => {
+          const playerItem = document.createElement("div");
+          playerItem.id = `player-${player.id}`;
+          playerItem.textContent = player.username;
+          playersList.appendChild(playerItem);
+        });
+        console.log(currentSocketState);
+        updateStartGameButton();
+      });
+
+      socket.on("roomLeft", (data) => {
+        alert(`Left room: ${data.room}`);
+        currentSocketState.currentRoom = null;
+        currentSocketState.gameState = null;
+        document.getElementById("roomCode").textContent = "";
+        document.getElementById("playersList").innerHTML = "";
+        document.getElementById("insideRoomControls").style.display = "none";
+        document.getElementById("roomControls").style.display = "flex";
+        updateStartGameButton();
+      });
+
+      socket.on("playerListUpdated", (data) => {
+        currentSocketState.gameState.players = data.players;
+        const playersList = document.getElementById("playersList");
+        playersList.innerHTML = "";
+        data.players.map((player) => {
+          const playerItem = document.createElement("div");
+          playerItem.textContent = player.username;
+          playersList.appendChild(playerItem);
+        });
+      });
+
+      socket.on("gameStarted", (data) => {
+        alert("Game started!");
+        currentSocketState.gameState = data.gameState;
+        updateStartGameButton();
+      });
+
+      socket.on("updateGameState", (data) => {
+        console.log("Game state updated:", data);
+        currentSocketState.gameState = data.gameState;
+        const playersList = document.getElementById("playersList");
+        playersList.innerHTML = "";
+        currentSocketState.gameState.players.forEach((player) => {
+          const playerItem = document.createElement("div");
+          playerItem.textContent = player.username;
+          if (
+            currentSocketState.gameState.currentTurn &&
+            player.id === currentSocketState.gameState.currentPlayer.id
+          ) {
+            const badge = document.createElement("span");
+            badge.textContent = " (Current)";
+            badge.style.background = "#2196f3";
+            badge.style.color = "#fff";
+            badge.style.borderRadius = "8px";
+            badge.style.padding = "2px 8px";
+            badge.style.marginLeft = "8px";
+            playerItem.appendChild(badge);
+          }
+          playersList.appendChild(playerItem);
+          updateSkipTurnButton();
+        });
+      });
+
+      socket.on("error", (data) => {
+        alert(`Error: ${data.message}`);
+      });
+
+      // Update button state on socket events
+      socket.on("connect", () => {
+        socket.emit("register", {
+          username: document.getElementById("usernameInput").value,
+        });
+        currentSocketState.connected = true;
+        updateButtonVisibility();
+        updateConnectionBadge();
+      });
+
+      socket.on("disconnect", () => {
+        currentSocketState.connected = false;
+        updateButtonVisibility();
+        updateConnectionBadge();
+      });
+    </script>
+  </body>
+</html>

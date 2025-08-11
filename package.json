@@ -1,0 +1,25 @@
+{
+  "name": "profile4-server",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "npx tsc",
+    "start": "node dist/server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.2.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  }
+}
