@@ -169,7 +169,10 @@ io.on("connection", (socket) => {
         (rooms[code].gameState.currentTurn ?? 0) + 1;
 
       // Only emit if there are players and a valid currentPlayer
-      if (rooms[code].gameState.players.length > 0 && rooms[code].gameState.currentPlayer) {
+      if (
+        rooms[code].gameState.players.length > 0 &&
+        rooms[code].gameState.currentPlayer
+      ) {
         io.to(code).emit("updateGameState", {
           gameState: {
             started: rooms[code].gameState.started,
@@ -199,11 +202,9 @@ io.on("connection", (socket) => {
   });
 });
 
-app.use(express.static(path.join(__dirname, "../public")));
-
-// Optionally, serve index.html for the root route
+app.use(express.static(path.join(__dirname, "public")));
 app.get("/", (_, res) => {
-  res.sendFile(path.join(__dirname, "../public/index.html"));
+  res.sendFile(path.join(__dirname, "public/index.html"));
 });
 
 //Route initialization
