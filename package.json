@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "npx tsc && cp -r public dist/",
+    "build": "npx tsc",
     "start": "node dist/server.js"
   },
   "author": "",
